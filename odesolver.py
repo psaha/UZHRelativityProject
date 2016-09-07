@@ -83,8 +83,7 @@ class Orbit_Solution(object):
 
         return x, y, px, py
 
-    def get_orbits(self):
-
+    def get_orbits(self, deviations):
         reference_orbit = np.array(self.solve(classical_derivatives, [0, 0, 0, 0]))
         reference_orbit = reference_orbit[0] + 1j*reference_orbit[1]
 
@@ -92,10 +91,8 @@ class Orbit_Solution(object):
         clas_orbits = []
 
         for i in range(self.number_of_curves):
-            deviations = [30*(i-(self.number_of_curves-1)/2), 0, 0, 0]
-            #deviations = [0, 0, 0, 0.001*(i-(self.number_of_curves-1)/2)]
-            r_orb = self.solve(relativistic_derivatives, deviations)
-            c_orb = self.solve(classical_derivatives, deviations)
+            r_orb = self.solve(relativistic_derivatives, deviations[i])
+            c_orb = self.solve(classical_derivatives, deviations[i])
 
             rel_orbits.append(r_orb)
             clas_orbits.append(c_orb)
@@ -105,11 +102,7 @@ class Orbit_Solution(object):
 
         return reference_orbit, rel_orbits, clas_orbits
 
-    def get_difference_vectors(self):
-
-        reference_orbit = self.get_orbits()[0]
-        rel_orbits = self.get_orbits()[1]
-        clas_orbits = self.get_orbits()[2]
+    def get_difference_vectors(self, reference_orbit, rel_orbits, clas_orbits):
         rel_differences = np.zeros_like(rel_orbits)
         classical_differences = np.zeros_like(clas_orbits)
 
@@ -133,6 +126,7 @@ def basisfuns(A):
         norm = abs(f[0,0])**0.5
         VT[-1-t] = sigVT[t] / norm
         lam[-1-t] = norm
+    #print(lam)
     return lam,VT
 
 def inner_product(matrix1, matrix2):
@@ -151,7 +145,7 @@ def relativistic_components(phi_c, phi_nr):
             delta[n] -= np.dot(delta[n],phi_nr[m].conj().T) * phi_nr[m]
     return delta
 
-def plot_orbits(rel_orbits, clas_orbits, combined_differences, classical_differences, number_of_curves):
+def plot_orbits(reference_orbit, rel_orbits, clas_orbits, number_of_curves):
     # Set up plotting.
     fig = plt.figure()
     ax1 = fig.add_subplot(1,2,1, adjustable='box', aspect = 1.0)
@@ -162,15 +156,47 @@ def plot_orbits(rel_orbits, clas_orbits, combined_differences, classical_differe
     ax2.set_ylabel('y')
 
     # Plot data.
+    rel_differences, classical_differences, combined_differences = orbits.get_difference_vectors(
+                                                        reference_orbit, rel_orbits, clas_orbits)
     for i in range(len(rel_orbits)):
         ax1.plot(rel_orbits[i].real, rel_orbits[i].imag, 'b')
         ax1.plot(clas_orbits[i].real, clas_orbits[i].imag, 'g')
 
-        ax2.plot(combined_differences[i].real, combined_differences[i].imag, label=('R'))
+        ax2.plot(combined_differences[i].real, rel_differences[i].imag, label=('R'))
         ax2.plot(classical_differences[i].real, classical_differences[i].imag, label=('C'))
 
     ax2.legend()
     plt.show()
+
+def generate_relativistic_basis(reference_orbit, rel_orbits, clas_orbits, number_of_curves):
+    rel_differences, classical_differences, combined_differences = orbits.get_difference_vectors(
+                                                        reference_orbit, rel_orbits, clas_orbits)
+
+    # Generate differential orbit basis functions (phi_c, phi_nr)
+    str_c, phi_c = basisfuns(np.matrix(combined_differences))
+    str_nr, phi_nr = basisfuns(np.matrix(classical_differences))
+
+    # Extract relativistic components of the differential orbit basis functions (psi)
+    psi = relativistic_components(np.matrix(phi_c), np.matrix(phi_nr)) #take a slice?
+
+    # Generate basis functions of the relativistic components
+    # (should be orthonormal to the non-relativistic components) (psi_basis)
+    strength, psi_basis = basisfuns(psi)
+
+    #print(inner_product(psi_basis, phi_nr)) # = zeros! yay!
+
+    # Recreate original orbits from the relativistic components (z from psi)
+    # This is a projection of the orbits onto the psi basis
+    # Applying basis reconstruction to the classical differences using psi
+    # results only in the reference orbit because there are no relativistic components
+    # whereas applying to relativistic difference orbits produces different curves
+    basis_reconstruction = np.zeros((number_of_curves, timesteps), dtype=complex)
+    for i in range(number_of_curves):
+        rel_dif = np.matrix(rel_differences[i])
+        basis_reconstruction[i] = sum([(inner_product(rel_dif, psi_basis[n])*psi_basis[n]) for n in range(number_of_curves)]) + reference_orbit
+        #plt.plot(basis_reconstruction[i].real, basis_reconstruction[i].imag, label=i)
+
+    return basis_reconstruction
 
 ################################
 ############ METHOD ############
@@ -178,40 +204,46 @@ def plot_orbits(rel_orbits, clas_orbits, combined_differences, classical_differe
 
 # Set up initial values: [x, y, px, py], number of orbits tested.
 initial_values = [2000.0, 0.0, 0.0, 0.01]
-number_of_curves = 5
+number_of_curves = 25
 timesteps = 1000
 
 # Create orbits (z), differential orbits (z - z_ref)
 orbits = Orbit_Solution(initial_values, number_of_curves, timesteps)
-reference_orbit, rel_orbits, clas_orbits = orbits.get_orbits()
-rel_differences, classical_differences, combined_differences = orbits.get_difference_vectors()
 
-#plot_orbits(rel_orbits, clas_orbits, combined_differences, classical_differences, number_of_curves)
-
-# Generate differential orbit basis functions (phi_c, phi_nr)
-str_c, phi_c = basisfuns(np.matrix(combined_differences))
-str_nr, phi_nr = basisfuns(np.matrix(classical_differences))
-
-# Extract relativistic components of the differential orbit basis functions (psi)
-psi = relativistic_components(np.matrix(phi_c), np.matrix(phi_nr))
-
-# Generate basis functions of the relativistic components
-# (should be orthonormal to the non-relativistic components) (psi_basis)
-strength, psi_basis = basisfuns(psi)
-#print(inner_product(psi_basis, phi_nr)) # = zeros! yay!
-
-# Recreate original orbits from the relativistic components (z from psi)
-# This is a projection of the orbits onto the psi basis
-# Applying basis reconstruction to the classical differences using psi
-# results only in the reference orbit because there are no relativistic components
-# whereas applying to relativistic difference orbits produces different curves
-basis_reconstruction = np.zeros((number_of_curves, timesteps), dtype=complex)
+# Define deviations
+deviations = np.zeros((number_of_curves, 4))
 for i in range(number_of_curves):
-    rel_dif = np.matrix(rel_differences[i])
-    basis_reconstruction[i] = sum([(inner_product(rel_dif, psi_basis[n])*psi_basis[n]) for n in range(number_of_curves)]) + reference_orbit
-    plt.plot(basis_reconstruction[i].real, basis_reconstruction[i].imag, label=i)
-plt.legend()
+    deviations[i] = [30*(i-(number_of_curves-1)/2), 0, 0, 0.0005*(i-(number_of_curves-1)/2)]
+
+reference_orbit, rel_orbits, clas_orbits = orbits.get_orbits(deviations)
+
+theta = np.pi/4
+rotate = np.matrix([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
+reference_orbit2 = np.matrix([reference_orbit.real, reference_orbit.imag])
+foo = np.zeros_like(reference_orbit2)
+for i in range(1000):
+    foo[:,i] = rotate*reference_orbit2[:,i]
+foo = foo[0] + 1j*foo[1]
+
+plt.plot(reference_orbit.real, reference_orbit.imag)
+plt.plot(foo.real, foo.imag, 'r.')
 plt.show()
+
+#plot_orbits(reference_orbit, rel_orbits, clas_orbits, number_of_curves)
+
+basis_reconstruction = generate_relativistic_basis(reference_orbit, rel_orbits, clas_orbits, number_of_curves)
+
+for i in range(number_of_curves):
+    plt.plot(basis_reconstruction[i].real, basis_reconstruction[i].imag, label=i)
+plt.show()
+
+
+
+
+
+
+
+
 
 # try making the combined set to have different starting posns and momenta and then (say have 5 diff ones) and then have 5 diff orientations 
 # have 25 say and then take 5 diff orientations of those 25. 
