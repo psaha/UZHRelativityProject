@@ -198,6 +198,15 @@ def generate_relativistic_basis(reference_orbit, rel_orbits, clas_orbits, number
 
     return basis_reconstruction
 
+def rotate_orbit(orbit, theta):
+    rotate = np.matrix([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
+    orbit = np.matrix([orbit.real, orbit.imag])
+    rotated_orbit = np.zeros_like(orbit)
+    for i in range(orbit.shape[1]):
+        rotated_orbit[:,i] = rotate*orbit[:,i]
+    rotated_orbit = rotated_orbit[0] + 1j*rotated_orbit[1]
+    return rotated_orbit # why can't I get a line plotted?
+
 ################################
 ############ METHOD ############
 ################################
@@ -217,17 +226,11 @@ for i in range(number_of_curves):
 
 reference_orbit, rel_orbits, clas_orbits = orbits.get_orbits(deviations)
 
-theta = np.pi/4
-rotate = np.matrix([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
-reference_orbit2 = np.matrix([reference_orbit.real, reference_orbit.imag])
-foo = np.zeros_like(reference_orbit2)
-for i in range(1000):
-    foo[:,i] = rotate*reference_orbit2[:,i]
-foo = foo[0] + 1j*foo[1]
-
-plt.plot(reference_orbit.real, reference_orbit.imag)
+# ROTATE A COLLECTION OF ORBITS
+foo = np.zeros_like(rel_orbits)
+for i in range(len(foo)):
+    foo[i] = rotate_orbit(rel_orbits[i], np.pi/4)
 plt.plot(foo.real, foo.imag, 'r.')
-plt.show()
 
 #plot_orbits(reference_orbit, rel_orbits, clas_orbits, number_of_curves)
 
