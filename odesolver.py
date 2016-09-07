@@ -176,15 +176,21 @@ strength, psi_basis = basisfuns(psi)
 #print(inner_product(psi_basis, phi_nr)) # = zeros! yay!
 
 # Recreate original orbits from the relativistic components (z from psi)
+basis_reconstruction = np.zeros((number_of_curves, 1000), dtype=complex)
 for i in range(number_of_curves):
-    thing = np.matrix(rel_differences[i])     #[0] + 1j*rel_differences[i][1])
-    basis_recomposition = sum([(inner_product(thing, psi[n])*psi[n]) for n in range(number_of_curves)]) + (reference_orbit)
-#complex numbers include y bit
-    plt.plot(basis_recomposition.real, basis_recomposition.imag, 'b.')
-    plt.plot(thing.real + reference_orbit.real, thing.imag + reference_orbit.imag, 'm.')
-    plt.plot(rel_orbits[i].real, rel_orbits[i].imag, 'r.')
-    plt.plot(clas_orbits[i].real, clas_orbits[i].imag, 'g.')
-    plt.show()
+    rel_dif = np.matrix(rel_differences[i])
+    basis_reconstruction[i] = sum([(inner_product(rel_dif, psi[n])*psi[n]) for n in range(number_of_curves)]) + reference_orbit
+    plt.plot(basis_reconstruction[i].real, basis_reconstruction[i].imag)
+
+plt.show()
+    #print(basis_reconstruction.shape)
+
+
+#    plt.plot(basis_reconstruction.real, basis_reconstruction.imag, 'b.')
+#plt.plot(basis_reconstruction[1].real, basis_reconstruction[1].imag, 'r.')
+#    plt.plot(rel_orbits[i].real, rel_orbits[i].imag, 'r.')
+#    plt.plot(clas_orbits[i].real, clas_orbits[i].imag, 'g.')
+#    plt.show()
 
 
 
