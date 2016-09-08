@@ -66,11 +66,12 @@ def classical_derivatives(eqns, tau):
 
 class Orbit_Solution(object):
 
-    def __init__(self, initial_values, number_of_curves, timesteps):
+    def __init__(self, initial_values, number_of_curves, number_of_angles, timesteps):
         n = 250000
         self.tau = np.linspace(0.0, n, timesteps)
         self.init = InitialConditions(initial_values)
         self.number_of_curves = number_of_curves
+        self.number_of_angles = number_of_angles
 
     def solve(self, derivatives, adjustments):
         initial_values = self.init.initialise_orbit(adjustments)
@@ -107,7 +108,7 @@ class Orbit_Solution(object):
         rel_differences = np.zeros_like(rel_orbits)
         classical_differences = np.zeros_like(clas_orbits)
 
-        for i in range(self.number_of_curves):
+        for i in range(self.number_of_curves**2*self.number_of_angles): #AHA!
             rel_differences[i] = rel_orbits[i] - reference_orbit
             classical_differences[i] = clas_orbits[i] - reference_orbit
         combined_differences = np.concatenate((rel_differences, classical_differences), axis=0)
@@ -125,11 +126,7 @@ def basisfuns(A):
     for t in range(T):
         f = sigVT[t]*sigVT[t].conj().T
         norm = abs(f[0,0])**0.5
-        if norm == 0:
-            #print('aargh') # temporary fix #NO HELP GET ZEROS
-            VT[-1-t] = sigVT[t]
-        else:
-            VT[-1-t] = sigVT[t] / norm
+        VT[-1-t] = sigVT[t] / norm
         lam[-1-t] = norm
     #print(lam)
     return lam,VT
@@ -177,7 +174,6 @@ def generate_relativistic_basis(reference_orbit, rel_orbits, clas_orbits, number
 
     rel_differences, classical_differences, combined_differences = orbits.get_difference_vectors(
                                                         reference_orbit, rel_orbits, clas_orbits)
-
     # Generate differential orbit basis functions (phi_c, phi_nr)
     str_c, phi_c = basisfuns(np.matrix(combined_differences))   # one single basis function is messing the rest up. What do?
     str_nr, phi_nr = basisfuns(np.matrix(classical_differences))
@@ -199,7 +195,7 @@ def generate_relativistic_basis(reference_orbit, rel_orbits, clas_orbits, number
     basis_reconstruction = np.zeros((number_of_curves**2*number_of_angles, timesteps), dtype=complex)
     for i in range(number_of_curves**2*number_of_angles):
         rel_dif = np.matrix(rel_differences[i])
-        basis_reconstruction[i] = sum([(inner_product(rel_dif, psi_basis[n])*psi_basis[n]) for n in range(number_of_curves)]) + reference_orbit #ZEROS FROM 6 ONWARDS
+        basis_reconstruction[i] = sum([(inner_product(rel_dif, psi_basis[n])*psi_basis[n]) for n in range(number_of_curves)]) + reference_orbit
         #plt.plot(basis_reconstruction[i].real, basis_reconstruction[i].imag, label=i)
 
     return basis_reconstruction
@@ -225,7 +221,7 @@ angles = [(n+1)*np.pi/100 for n in range(4)]
 number_of_angles = len(angles)+1
 
 # Create orbits (z), differential orbits (z - z_ref)
-orbits = Orbit_Solution(initial_values, number_of_curves, timesteps)
+orbits = Orbit_Solution(initial_values, number_of_curves, number_of_angles, timesteps)
 
 # Define deviations
 deviations = np.zeros((number_of_curves, number_of_curves, 4))
@@ -246,9 +242,9 @@ for i in range(number_of_curves**2):
         clas_orbits = np.concatenate((clas_orbits, new_clas))
 
 
-#for i in range(len(rel_orbits)):
-#    plt.plot(rel_orbits[i].real, rel_orbits[i].imag)
-#plt.show()
+for i in range(len(rel_orbits)):
+    plt.plot(rel_orbits[i].real, rel_orbits[i].imag)
+plt.show()
 
 #plot_orbits(reference_orbit, rel_orbits, clas_orbits, number_of_curves)
 
