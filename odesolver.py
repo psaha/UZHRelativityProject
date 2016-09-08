@@ -125,7 +125,11 @@ def basisfuns(A):
     for t in range(T):
         f = sigVT[t]*sigVT[t].conj().T
         norm = abs(f[0,0])**0.5
-        VT[-1-t] = sigVT[t] / norm
+        if norm == 0:
+            #print('aargh') # temporary fix #NO HELP GET ZEROS
+            VT[-1-t] = sigVT[t]
+        else:
+            VT[-1-t] = sigVT[t] / norm
         lam[-1-t] = norm
     #print(lam)
     return lam,VT
@@ -169,10 +173,11 @@ def plot_orbits(reference_orbit, rel_orbits, clas_orbits, number_of_curves):
     ax2.legend()
     plt.show()
 
-def generate_relativistic_basis(reference_orbit, rel_orbits, clas_orbits, number_of_curves):
+def generate_relativistic_basis(reference_orbit, rel_orbits, clas_orbits, number_of_curves, number_of_angles):
 
     rel_differences, classical_differences, combined_differences = orbits.get_difference_vectors(
                                                         reference_orbit, rel_orbits, clas_orbits)
+
     # Generate differential orbit basis functions (phi_c, phi_nr)
     str_c, phi_c = basisfuns(np.matrix(combined_differences))   # one single basis function is messing the rest up. What do?
     str_nr, phi_nr = basisfuns(np.matrix(classical_differences))
@@ -191,10 +196,10 @@ def generate_relativistic_basis(reference_orbit, rel_orbits, clas_orbits, number
     # Applying basis reconstruction to the classical differences using psi
     # results only in the reference orbit because there are no relativistic components
     # whereas applying to relativistic difference orbits produces different curves
-    basis_reconstruction = np.zeros((number_of_curves, timesteps), dtype=complex)
-    for i in range(number_of_curves):
+    basis_reconstruction = np.zeros((number_of_curves**2*number_of_angles, timesteps), dtype=complex)
+    for i in range(number_of_curves**2*number_of_angles):
         rel_dif = np.matrix(rel_differences[i])
-        basis_reconstruction[i] = sum([(inner_product(rel_dif, psi_basis[n])*psi_basis[n]) for n in range(number_of_curves)]) + reference_orbit
+        basis_reconstruction[i] = sum([(inner_product(rel_dif, psi_basis[n])*psi_basis[n]) for n in range(number_of_curves)]) + reference_orbit #ZEROS FROM 6 ONWARDS
         #plt.plot(basis_reconstruction[i].real, basis_reconstruction[i].imag, label=i)
 
     return basis_reconstruction
@@ -216,6 +221,8 @@ def rotate_orbit(orbit, theta):
 initial_values = [2000.0, 0.0, 0.0, 0.01]
 number_of_curves = 5
 timesteps = 1000
+angles = [(n+1)*np.pi/100 for n in range(4)]
+number_of_angles = len(angles)+1
 
 # Create orbits (z), differential orbits (z - z_ref)
 orbits = Orbit_Solution(initial_values, number_of_curves, timesteps)
@@ -228,7 +235,7 @@ for i in range(number_of_curves):
 
 reference_orbit, rel_orbits, clas_orbits = orbits.get_orbits(deviations)
 
-angles = [(n+1)*np.pi/100 for n in range(4)]
+
 for i in range(number_of_curves**2):
     for j in range(len(angles)):
         new_rel = (rotate_orbit(rel_orbits[i], angles[j]))
@@ -237,7 +244,7 @@ for i in range(number_of_curves**2):
         new_clas = (rotate_orbit(rel_orbits[i], angles[j]))
         new_clas = np.array(new_clas)
         clas_orbits = np.concatenate((clas_orbits, new_clas))
-print(rel_orbits.shape)
+
 
 #for i in range(len(rel_orbits)):
 #    plt.plot(rel_orbits[i].real, rel_orbits[i].imag)
@@ -245,11 +252,12 @@ print(rel_orbits.shape)
 
 #plot_orbits(reference_orbit, rel_orbits, clas_orbits, number_of_curves)
 
-basis_reconstruction = generate_relativistic_basis(reference_orbit, rel_orbits, clas_orbits, number_of_curves)
+basis_reconstruction = generate_relativistic_basis(reference_orbit, rel_orbits, clas_orbits, number_of_curves, number_of_angles)
 
 
-for i in range(number_of_curves):
+for i in range(number_of_curves**2*number_of_angles):
     plt.plot(basis_reconstruction[i].real, basis_reconstruction[i].imag, label=i)
+plt.legend()
 plt.show()
 
 
