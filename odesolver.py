@@ -7,6 +7,9 @@ matplotlib.rcParams['backend'] = "Qt4Agg"
 import matplotlib.pyplot as plt
 
 
+# time delay of light path going past a ... the lensing time delay is always of of order Gm/x**3 (time dimensions) so basically it's proportional to mass to an order magnitude. Sun has Schw radius of 3km and which is 10^-5 light seconds of the order 10 micro seconds so it's plausible that the relativistic signal will be of the order of the schwarzschild radius 
+# see how schw radius affects extent of the curves
+
 class InitialConditions(object):
 
     """Set the initial position and velocity of the reference orbit."""
@@ -67,7 +70,7 @@ def classical_derivatives(eqns, tau):
 class Orbit_Solution(object):
 
     def __init__(self, initial_values, init_variations, number_of_angles, timesteps):
-        n = 250000
+        n = 250000/8
         self.tau = np.linspace(0.0, n, timesteps)
         self.init = InitialConditions(initial_values)
         self.init_variations = init_variations
@@ -129,8 +132,6 @@ def basisfuns(A):
         norm = abs(f[0,0])**0.5
         VT[-1-t] = sigVT[t] / norm
         lam[-1-t] = norm
-    plt.plot(np.array(range(len(lam))),lam)
-    plt.show()
     return lam,VT
 
 def inner_product(matrix1, matrix2):
@@ -181,7 +182,7 @@ def generate_relativistic_basis(reference_orbit, rel_orbits, clas_orbits, number
     str_nr, phi_nr = basisfuns(np.matrix(classical_differences))
 
     # Extract relativistic components of the differential orbit basis functions (psi)
-    psi = relativistic_components(np.matrix(phi_c[:10]), np.matrix(phi_nr[:10])) #take a slice?
+    psi = relativistic_components(np.matrix(phi_c[:10]), np.matrix(phi_nr[:10])) #sliced at point where goes to 0
 
     # Generate basis functions of the relativistic components
     # (should be orthonormal to the non-relativistic components) (psi_basis)
@@ -197,7 +198,7 @@ def generate_relativistic_basis(reference_orbit, rel_orbits, clas_orbits, number
     basis_reconstruction = np.zeros((number_of_curves, timesteps), dtype=complex)
     for i in range(number_of_curves):
         rel_dif = np.matrix(rel_differences[i])
-        basis_reconstruction[i] = sum([(inner_product(rel_dif, psi_basis[n])*psi_basis[n]) for n in range(len(psi_basis))])# + reference_orbit/10
+        basis_reconstruction[i] = sum([(inner_product(rel_dif, psi_basis[n])*psi_basis[n]) for n in range(len(psi_basis))]) #+ reference_orbit
 
     return basis_reconstruction
 
@@ -215,7 +216,7 @@ def rotate_orbit(orbit, theta):
 ################################
 
 # Set up initial values: [x, y, px, py], number of orbits tested.
-initial_values = [2000.0, 0.0, 0.0, 0.01]
+initial_values = [500.0, 0.0, 0.0, 0.02]
 init_variations = 5
 timesteps = 1000
 angles = [(n+1)*np.pi/100 for n in range(4)]
@@ -233,6 +234,8 @@ for i in range(init_variations):
 
 reference_orbit, rel_orbits, clas_orbits = orbits.get_orbits(deviations)
 
+
+
 for i in range(init_variations**2):
     for j in range(number_of_angles - 1):
         new_rel = (rotate_orbit(rel_orbits[i], angles[j]))
@@ -246,10 +249,11 @@ for i in range(init_variations**2):
 
 basis_reconstruction = generate_relativistic_basis(reference_orbit, rel_orbits, clas_orbits, number_of_curves)
 
-for i in range(1):
-    plt.plot(basis_reconstruction[i].real, basis_reconstruction[i].imag, 'b.', label=i)
-plt.plot(basis_reconstruction[0][0].real, basis_reconstruction[0][0].imag, 'r.')
-#plt.legend()
+c = ['r', 'b', 'm', 'g', 'c', 'y', 'k', 'r--', 'b--', 'm--', 'g--', 'c--', 'y--', 'k--']
+for i in range(number_of_curves):
+    plt.plot(basis_reconstruction[i].real, basis_reconstruction[i].imag, label=i)
+#plt.plot(basis_reconstruction[0][0].real, basis_reconstruction[0][0].imag, 'r.')
+plt.legend()
 plt.show()
 
 
