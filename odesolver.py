@@ -91,11 +91,12 @@ class Orbit_Solution(object):
         clas_orbits = []
 
         for i in range(self.number_of_curves):
-            r_orb = self.solve(relativistic_derivatives, deviations[i])
-            c_orb = self.solve(classical_derivatives, deviations[i])
+            for j in range(self.number_of_curves):
+                r_orb = self.solve(relativistic_derivatives, deviations[i][j])
+                c_orb = self.solve(classical_derivatives, deviations[i][j])
 
-            rel_orbits.append(r_orb)
-            clas_orbits.append(c_orb)
+                rel_orbits.append(r_orb)
+                clas_orbits.append(c_orb)
 
         rel_orbits = np.array(rel_orbits)[:,0] + 1j*np.array(rel_orbits)[:,1]
         clas_orbits = np.array(clas_orbits)[:,0] + 1j*np.array(clas_orbits)[:,1]
@@ -169,11 +170,11 @@ def plot_orbits(reference_orbit, rel_orbits, clas_orbits, number_of_curves):
     plt.show()
 
 def generate_relativistic_basis(reference_orbit, rel_orbits, clas_orbits, number_of_curves):
+
     rel_differences, classical_differences, combined_differences = orbits.get_difference_vectors(
                                                         reference_orbit, rel_orbits, clas_orbits)
-
     # Generate differential orbit basis functions (phi_c, phi_nr)
-    str_c, phi_c = basisfuns(np.matrix(combined_differences))
+    str_c, phi_c = basisfuns(np.matrix(combined_differences))   # one single basis function is messing the rest up. What do?
     str_nr, phi_nr = basisfuns(np.matrix(classical_differences))
 
     # Extract relativistic components of the differential orbit basis functions (psi)
@@ -205,7 +206,7 @@ def rotate_orbit(orbit, theta):
     for i in range(orbit.shape[1]):
         rotated_orbit[:,i] = rotate*orbit[:,i]
     rotated_orbit = rotated_orbit[0] + 1j*rotated_orbit[1]
-    return rotated_orbit # why can't I get a line plotted?
+    return rotated_orbit
 
 ################################
 ############ METHOD ############
@@ -213,28 +214,39 @@ def rotate_orbit(orbit, theta):
 
 # Set up initial values: [x, y, px, py], number of orbits tested.
 initial_values = [2000.0, 0.0, 0.0, 0.01]
-number_of_curves = 25
+number_of_curves = 5
 timesteps = 1000
 
 # Create orbits (z), differential orbits (z - z_ref)
 orbits = Orbit_Solution(initial_values, number_of_curves, timesteps)
 
 # Define deviations
-deviations = np.zeros((number_of_curves, 4))
+deviations = np.zeros((number_of_curves, number_of_curves, 4))
 for i in range(number_of_curves):
-    deviations[i] = [30*(i-(number_of_curves-1)/2), 0, 0, 0.0005*(i-(number_of_curves-1)/2)]
+    for j in range(number_of_curves):
+        deviations[i][j] = [30*(i-(number_of_curves-1)/2), 0, 0, 0.0005*(j-(number_of_curves-1)/2)] #so far so good :)
 
 reference_orbit, rel_orbits, clas_orbits = orbits.get_orbits(deviations)
 
-# ROTATE A COLLECTION OF ORBITS
-foo = np.zeros_like(rel_orbits)
-for i in range(len(foo)):
-    foo[i] = rotate_orbit(rel_orbits[i], np.pi/4)
-plt.plot(foo.real, foo.imag, 'r.')
+angles = [(n+1)*np.pi/100 for n in range(4)]
+for i in range(number_of_curves**2):
+    for j in range(len(angles)):
+        new_rel = (rotate_orbit(rel_orbits[i], angles[j]))
+        new_rel = np.array(new_rel)
+        rel_orbits = np.concatenate((rel_orbits, new_rel))
+        new_clas = (rotate_orbit(rel_orbits[i], angles[j]))
+        new_clas = np.array(new_clas)
+        clas_orbits = np.concatenate((clas_orbits, new_clas))
+print(rel_orbits.shape)
+
+#for i in range(len(rel_orbits)):
+#    plt.plot(rel_orbits[i].real, rel_orbits[i].imag)
+#plt.show()
 
 #plot_orbits(reference_orbit, rel_orbits, clas_orbits, number_of_curves)
 
 basis_reconstruction = generate_relativistic_basis(reference_orbit, rel_orbits, clas_orbits, number_of_curves)
+
 
 for i in range(number_of_curves):
     plt.plot(basis_reconstruction[i].real, basis_reconstruction[i].imag, label=i)
