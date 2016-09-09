@@ -20,7 +20,7 @@ class Settings(object):
         self.initial_values = [2000.0, 0.0, 0.0, 0.01] #double mass, major axis and time counts - get same (?check in detail)
         self.init_variations = 5
         self.cmpts = 10
-        self.total_time = 250000 #Move this??
+        self.total_time = 250000
         self.timesteps = 1000
         self.angles = [(n+1)*np.pi/100 for n in range(4)]
         self.number_of_angles = len(self.angles)+1
@@ -278,6 +278,13 @@ def generate_relativistic_basis(reference_orbit, rel_orbits, clas_orbits, settin
 
     return basis_reconstruction
 
+def timeslice(orbit, t):
+    new_orbits = np.zeros((5,1000), dtype=complex)
+    for i in range(5):
+        new_orbits[i, i*t:] = orbit[i*t:]
+#    for j in range(len(new_orbits)):
+#        new_orbits[-1-j] = new_orbits[j] # DOES THIS DO THE RIGHT THING?
+    return new_orbits
 
 ################################
 ############ METHOD ############
@@ -289,7 +296,15 @@ orbits = Orbit_Solution(settings)
 reference_orbit, rel_orbits, clas_orbits = orbits.get_orbits()
 # Obtain set of rotated orbits
 rel_orbits, clas_orbits = get_rotated_orbits(rel_orbits, clas_orbits, settings)
-#plot_orbits(reference_orbit, rel_orbits, clas_orbits)
+plot_orbits(reference_orbit, rel_orbits, clas_orbits)
+
+# TIMESLICER. ISSUE WITH ZEROS NEEDS THINKING ABOUT. ALSO FACT THAT IT'S CUT OFF.
+#foo = timeslice(rel_orbits[0], 100)
+#for i in range(len(foo)):
+#    plt.plot(foo[i].real, foo[i].imag, label=i)
+#plt.legend()
+#plt.show()
+
 # Reconstruct components of orbits that are purely relativistic and not found in the classical orbits
 basis_reconstruction = generate_relativistic_basis(reference_orbit, rel_orbits, clas_orbits, settings)
 # Plot reconstructed components
@@ -298,7 +313,6 @@ for i in range(len(basis_reconstruction)):
 #    plt.plot(rel_orbits[i].real, rel_orbits[i].imag, 'r.')
 plt.legend()
 plt.show()
-
 
 
 
