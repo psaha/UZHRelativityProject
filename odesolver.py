@@ -32,20 +32,23 @@ def relativistic_derivatives(eqns, tau):
     Returns the differential equations describing movement
     in Schwarzchild spacetime.
     """
+    M = 2
     x = eqns[0]
     y = eqns[1]
     px = eqns[2]
     py = eqns[3]
     r = np.sqrt(x**2 + y**2)
-    dx = px - (x*px + y*py)*2*x/r**3
-    dpx = ((x*px + y*py)*2*px/r**3
-                - ((1 - 2/r)**-2)*x/r**3
-                - ((x*px + y*py)**2)*3*x/r**5)
-    dy = py - (x*px + y*py)*2*y/r**3
-    dpy = ((x*px + y*py)*2*py/r**3
-                - ((1 - 2/r)**-2)*y/r**3
-                - ((x*px + y*py)**2)*3*y/r**5)
+    dx = px - (x*px + y*py)*2*M*x/r**3
+    dpx = ((x*px + y*py)*2*M*px/r**3
+                - ((1 - 2/r)**-2)*M*x/r**3
+                - ((x*px + y*py)**2)*3*M*x/r**5)
+    dy = py - (x*px + y*py)*2*M*y/r**3
+    dpy = ((x*px + y*py)*2*M*py/r**3
+                - ((1 - 2/r)**-2)*M*y/r**3
+                - ((x*px + y*py)**2)*3*M*y/r**5)
     return [dx, dy, dpx, dpy]
+
+# increase mass by factor, increase initial distance by factor, decrease momentum by sqrt(factor) should get no change
 
 def classical_derivatives(eqns, tau):
     """
@@ -54,6 +57,7 @@ def classical_derivatives(eqns, tau):
     Returns the differential equations describing movement
     under Newtonian gravity.
     """
+    M = 2
     x = eqns[0]
     y = eqns[1]
     px = eqns[2]
@@ -61,16 +65,16 @@ def classical_derivatives(eqns, tau):
     r = np.sqrt(x**2 + y**2)
     r = np.sqrt(x**2 + y**2)
     dx = px
-    dpx = -x/r**3
+    dpx = -M*x/r**3
     dy = py
-    dpy = -y/r**3
+    dpy = -M*y/r**3
     return [dx, dy, dpx, dpy]
 
 
 class Orbit_Solution(object):
 
     def __init__(self, initial_values, init_variations, number_of_angles, timesteps):
-        n = 250000/8
+        n = 250000*2
         self.tau = np.linspace(0.0, n, timesteps)
         self.init = InitialConditions(initial_values)
         self.init_variations = init_variations
@@ -198,7 +202,7 @@ def generate_relativistic_basis(reference_orbit, rel_orbits, clas_orbits, number
     basis_reconstruction = np.zeros((number_of_curves, timesteps), dtype=complex)
     for i in range(number_of_curves):
         rel_dif = np.matrix(rel_differences[i])
-        basis_reconstruction[i] = sum([(inner_product(rel_dif, psi_basis[n])*psi_basis[n]) for n in range(len(psi_basis))]) #+ reference_orbit
+        basis_reconstruction[i] = sum([(inner_product(rel_dif, psi_basis[n])*psi_basis[n]) for n in range(len(psi_basis))]) + reference_orbit
 
     return basis_reconstruction
 
@@ -216,11 +220,11 @@ def rotate_orbit(orbit, theta):
 ################################
 
 # Set up initial values: [x, y, px, py], number of orbits tested.
-initial_values = [500.0, 0.0, 0.0, 0.02]
+initial_values = [4000.0, 0.0, 0.0, 0.01] #double mass, major axis and time counts - get same (?check in detail)
 init_variations = 5
 timesteps = 1000
 angles = [(n+1)*np.pi/100 for n in range(4)]
-number_of_angles = len(angles)+1
+number_of_angles = len(angles)+1 #AM I TURNING OFF ANGLES CORRECTLY WHEN I CHANGE THIS?
 number_of_curves = init_variations**2*number_of_angles
 
 # Create orbits (z), differential orbits (z - z_ref)
@@ -234,8 +238,6 @@ for i in range(init_variations):
 
 reference_orbit, rel_orbits, clas_orbits = orbits.get_orbits(deviations)
 
-
-
 for i in range(init_variations**2):
     for j in range(number_of_angles - 1):
         new_rel = (rotate_orbit(rel_orbits[i], angles[j]))
@@ -243,16 +245,15 @@ for i in range(init_variations**2):
         rel_orbits = np.concatenate((rel_orbits, new_rel))
         new_clas = (rotate_orbit(rel_orbits[i], angles[j]))
         new_clas = np.array(new_clas)
-        clas_orbits = np.concatenate((clas_orbits, new_clas))
+        clas_orbits = np.concatenate((clas_orbits, new_clas)) # QUESSTIOOOOONNNNSSSSSSSSSSSS
 
-#plot_orbits(reference_orbit, rel_orbits, clas_orbits, number_of_curves)
+plot_orbits(reference_orbit, rel_orbits, clas_orbits, number_of_curves)
 
 basis_reconstruction = generate_relativistic_basis(reference_orbit, rel_orbits, clas_orbits, number_of_curves)
 
-c = ['r', 'b', 'm', 'g', 'c', 'y', 'k', 'r--', 'b--', 'm--', 'g--', 'c--', 'y--', 'k--']
+
 for i in range(number_of_curves):
     plt.plot(basis_reconstruction[i].real, basis_reconstruction[i].imag, label=i)
-#plt.plot(basis_reconstruction[0][0].real, basis_reconstruction[0][0].imag, 'r.')
 plt.legend()
 plt.show()
 
