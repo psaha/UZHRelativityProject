@@ -299,13 +299,15 @@ def generate_relativistic_basis(reference_orbit, rel_orbits, clas_orbits, settin
         rel_dif = np.matrix(rel_differences[i])
         basis_reconstruction[i] = sum([(inner_product(rel_dif, psi_basis[n])*psi_basis[n]) for n in range(settings.cmpts)]) + reference_orbit
 
-    foo = np.zeros((1, settings.timesteps), dtype=complex)
-    test_orbit = Orbit_Solution(settings).solve(relativistic_derivatives, [0.5, 0, 0, 0])
+    foo = np.zeros((10, settings.timesteps), dtype=complex)
+    test_orbit = Orbit_Solution(settings).solve(relativistic_derivatives, [0.3, 0, 0, 0.0005])
     test_orbit = np.array(test_orbit)[0] + 1j*np.array(test_orbit)[1]
+    test_orbit -= reference_orbit
     test_orbit = np.matrix(test_orbit)
-    foo[0] = sum([(inner_product(test_orbit, psi_basis[n])*psi_basis[n]) for n in range(settings.cmpts)]) + reference_orbit
+    for i in range(10):
+        foo[i] = sum([(inner_product(test_orbit, phi_nr[n])*phi_nr[n]) for n in range(i)]) + reference_orbit
 
-    return foo # basis_reconstruction
+    return basis_reconstruction
 
 
 
@@ -325,13 +327,14 @@ settings = Settings()
 orbits = Orbit_Solution(settings)
 reference_orbit, rel_orbits, clas_orbits = orbits.get_orbits()
 
-test_orbit = orbits.solve(relativistic_derivatives, [0.5, 0, 0, 0])
+test_orbit = orbits.solve(relativistic_derivatives, [0.3, 0, 0, 0.0005])
 test_orbit = np.array(test_orbit)[0] + 1j*np.array(test_orbit)[1]
 
 
 # TIMESLICER. ISSUE WITH FACT THAT IT'S CUT OFF.
-#rel_orbits = timeslice(rel_orbits[0], 100) #You're only timeslicing the first orbit!!!!!!
-#clas_orbits = timeslice(clas_orbits[0], 100)
+#for i in range(len(rel_orbits)):
+#    rel_orbits[i] = timeslice(rel_orbits[i], 100) #You're only timeslicing the first orbit!!!!!!
+#    clas_orbits[i] = timeslice(clas_orbits[i], 100)
 #reference_orbit = reference_orbit[:500] #think about this
 
 # Obtain set of rotated orbits
@@ -341,13 +344,13 @@ plot_orbits(reference_orbit, rel_orbits, clas_orbits)
 # Reconstruct components of orbits that are purely relativistic and not found in the classical orbits
 basis_reconstruction = generate_relativistic_basis(reference_orbit, rel_orbits, clas_orbits, settings)
 # Plot reconstructed components
-#for i in range(len(basis_reconstruction)):
-#    plt.plot(basis_reconstruction[i].real, basis_reconstruction[i].imag, label=i)
-plt.plot(test_orbit.real, test_orbit.imag)
-plt.plot(basis_reconstruction[0].real, basis_reconstruction[0].imag)
+for i in range(len(basis_reconstruction)):
+    plt.plot(basis_reconstruction[i].real, basis_reconstruction[i].imag, label=i)
+    plt.plot(test_orbit.real, test_orbit.imag, 'r.')
+#plt.plot(basis_reconstruction[0].real, basis_reconstruction[0].imag)
 
-#plt.legend()
-plt.show()
+    plt.legend()
+    plt.show()
 
 
 
