@@ -17,10 +17,10 @@ class Settings(object):
 
     def __init__(self):
         # Set up initial values: [x, y, px, py], number of orbits tested.
-        self.initial_values = [20.0, 0.0, 0.0, 2.0] #double mass, major axis and time counts - get same (?check in detail) #0.01 #changed size of orbit from 2000 0 0 0.01 to make harm derivs work - to be investigated further
+        self.initial_values = [2000.0, 0.0, 0.0, 0.01] #double mass, major axis and time counts - get same (?check in detail) #0.01 #changed size of orbit from 2000 0 0 0.01 to 20 0 0 2 make harm derivs work - to be investigated further
         self.init_variations = 5
-        self.cmpts = 3
-        self.total_time = 2*np.pi #450000 #250000
+        self.cmpts = 10
+        self.total_time = 250000 #2*np.pi #450000 #250000
         self.timesteps = 1000
         self.angles = [(n+1)*np.pi/100 for n in range(4)]
         self.number_of_angles = len(self.angles)+1
@@ -56,7 +56,7 @@ def relativistic_derivatives(eqns, tau):
     Returns the differential equations describing movement
     in Schwarzchild spacetime.
     """
-    return perturbed_harmonic_derivatives(eqns, tau)
+    #return perturbed_harmonic_derivatives(eqns, tau)
 
     M = 1
     x = eqns[0]
@@ -76,7 +76,7 @@ def relativistic_derivatives(eqns, tau):
 
 def classical_derivatives(eqns, tau):
 
-    return perturbed_harmonic_derivatives(eqns, tau, 0)
+    #return perturbed_harmonic_derivatives(eqns, tau, 0)
     """
     Classical orbit differential equations.
 
@@ -294,12 +294,18 @@ def generate_relativistic_basis(reference_orbit, rel_orbits, clas_orbits, settin
     # Applying basis reconstruction to the classical differences using psi
     # results only in the reference orbit because there are no relativistic components
     # whereas applying to relativistic difference orbits produces different curves
-    basis_reconstruction = np.zeros((settings.number_of_curves, settings.timesteps), dtype=complex) #500
+    basis_reconstruction = np.zeros((settings.number_of_curves, settings.timesteps), dtype=complex)
     for i in range(settings.number_of_curves):
         rel_dif = np.matrix(rel_differences[i])
-        basis_reconstruction[i] = sum([(inner_product(rel_dif, psi_basis[n])*psi_basis[n]) for n in range(settings.cmpts)]) + reference_orbit #vary basis fns to see when get noise fitting 
+        basis_reconstruction[i] = sum([(inner_product(rel_dif, psi_basis[n])*psi_basis[n]) for n in range(settings.cmpts)]) + reference_orbit
 
-    return basis_reconstruction
+    foo = np.zeros((1, settings.timesteps), dtype=complex)
+    test_orbit = Orbit_Solution(settings).solve(relativistic_derivatives, [0.5, 0, 0, 0])
+    test_orbit = np.array(test_orbit)[0] + 1j*np.array(test_orbit)[1]
+    test_orbit = np.matrix(test_orbit)
+    foo[0] = sum([(inner_product(test_orbit, psi_basis[n])*psi_basis[n]) for n in range(settings.cmpts)]) + reference_orbit
+
+    return foo # basis_reconstruction
 
 
 
@@ -319,6 +325,9 @@ settings = Settings()
 orbits = Orbit_Solution(settings)
 reference_orbit, rel_orbits, clas_orbits = orbits.get_orbits()
 
+test_orbit = orbits.solve(relativistic_derivatives, [0.5, 0, 0, 0])
+test_orbit = np.array(test_orbit)[0] + 1j*np.array(test_orbit)[1]
+
 
 # TIMESLICER. ISSUE WITH FACT THAT IT'S CUT OFF.
 #rel_orbits = timeslice(rel_orbits[0], 100) #You're only timeslicing the first orbit!!!!!!
@@ -332,8 +341,11 @@ plot_orbits(reference_orbit, rel_orbits, clas_orbits)
 # Reconstruct components of orbits that are purely relativistic and not found in the classical orbits
 basis_reconstruction = generate_relativistic_basis(reference_orbit, rel_orbits, clas_orbits, settings)
 # Plot reconstructed components
-for i in range(len(basis_reconstruction)):
-    plt.plot(basis_reconstruction[i].real, basis_reconstruction[i].imag, label=i)
+#for i in range(len(basis_reconstruction)):
+#    plt.plot(basis_reconstruction[i].real, basis_reconstruction[i].imag, label=i)
+plt.plot(test_orbit.real, test_orbit.imag)
+plt.plot(basis_reconstruction[0].real, basis_reconstruction[0].imag)
+
 #plt.legend()
 plt.show()
 
