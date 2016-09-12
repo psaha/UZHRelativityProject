@@ -93,6 +93,26 @@ def classical_derivatives(eqns, tau):
     return [dx, dy, dpx, dpy]
 
 
+def perturbed_harmonic_derivatives(eqns, tau): #something wrong with this...
+    """
+    Classical orbit differential equations.
+
+    Returns the differential equations describing movement
+    under Newtonian gravity.
+    """
+    k = 0
+    x = eqns[0]
+    y = eqns[1]
+    px = eqns[2]
+    py = eqns[3]
+    r = np.sqrt(x**2 + y**2)
+    r = np.sqrt(x**2 + y**2)
+    dx = px
+    dpx = -x*(1+(2*k**2/r**4))
+    dy = py
+    dpy = -y*(1+(2*k**2/r**4))
+    return [dx, dy, dpx, dpy]
+
 class Orbit_Solution(object):
 
     """
@@ -132,7 +152,7 @@ class Orbit_Solution(object):
         for i in range(self.settings.init_variations):
             for j in range(self.settings.init_variations):
                 r_orb = self.solve(relativistic_derivatives, deviations[i][j])
-                c_orb = self.solve(classical_derivatives, deviations[i][j])
+                c_orb = self.solve(classical_derivatives, deviations[i][j]) ###N.B.
 
                 rel_orbits.append(r_orb)
                 clas_orbits.append(c_orb)
@@ -149,7 +169,7 @@ class Orbit_Solution(object):
 
         for i in range(self.settings.number_of_curves):
             rel_differences[i] = rel_orbits[i] - reference_orbit
-            classical_differences[i] = clas_orbits[i] - reference_orbit
+            classical_differences[i] = clas_orbits[i] - reference_orbit # NB PUT I IN REF ORB
         combined_differences = np.concatenate((rel_differences, classical_differences), axis=0)
 
         return rel_differences, classical_differences, combined_differences
@@ -278,13 +298,14 @@ def generate_relativistic_basis(reference_orbit, rel_orbits, clas_orbits, settin
 
     return basis_reconstruction
 
+
+
 def timeslice(orbit, t):
-    new_orbits = np.zeros((5,1000), dtype=complex)
+    new = []
     for i in range(5):
-        new_orbits[i, i*t:] = orbit[i*t:]
-#    for j in range(len(new_orbits)):
-#        new_orbits[-1-j] = new_orbits[j] # DOES THIS DO THE RIGHT THING?
-    return new_orbits
+        foo = orbit[i*t:-(5-i)*t]
+        new.append(foo)
+    return new
 
 ################################
 ############ METHOD ############
@@ -298,12 +319,14 @@ reference_orbit, rel_orbits, clas_orbits = orbits.get_orbits()
 rel_orbits, clas_orbits = get_rotated_orbits(rel_orbits, clas_orbits, settings)
 plot_orbits(reference_orbit, rel_orbits, clas_orbits)
 
-# TIMESLICER. ISSUE WITH ZEROS NEEDS THINKING ABOUT. ALSO FACT THAT IT'S CUT OFF.
-#foo = timeslice(rel_orbits[0], 100)
-#for i in range(len(foo)):
-#    plt.plot(foo[i].real, foo[i].imag, label=i)
-#plt.legend()
-#plt.show()
+# TIMESLICER. ISSUE WITH FACT THAT IT'S CUT OFF.
+foo = timeslice(rel_orbits[0], 100)
+bar = timeslice(clas_orbits[0], 100)
+for i in range(len(foo)):
+    plt.plot(foo[i].real, foo[i].imag, label=i)
+    plt.plot(bar[i].real, bar[i].imag, label=i)
+plt.legend()
+plt.show()
 
 # Reconstruct components of orbits that are purely relativistic and not found in the classical orbits
 basis_reconstruction = generate_relativistic_basis(reference_orbit, rel_orbits, clas_orbits, settings)
