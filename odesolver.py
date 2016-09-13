@@ -322,7 +322,7 @@ def generate_relativistic_basis(reference_orbit, rel_orbits, clas_orbits, settin
     basis_reconstruction = np.zeros((settings.number_of_curves, settings.timesteps), dtype=complex)
     for i in range(settings.number_of_curves):
         rel_dif = np.matrix(rel_differences[i])
-        basis_reconstruction[i] = sum([(inner_product(rel_dif, psi_basis[n])*psi_basis[n]) for n in range(settings.cmpts)]) #+ reference_orbit
+        basis_reconstruction[i] = sum([(inner_product(rel_dif, psi_basis[n])*psi_basis[n]) for n in range(settings.cmpts)]) + reference_orbit
 
     test_projection = np.zeros((settings.cmpts, settings.timesteps), dtype=complex)
     test_orbit = Orbit_Solution(settings).solve(relativistic_derivatives, [1000, 0, 0, 0.0], settings.perturber_mass)
@@ -375,6 +375,11 @@ foo2 = np.array(foo2)[0] + 1j*np.array(foo2)[1]
 #    rel_orbits[i] = timeslice(rel_orbits[i], 100) #You're only timeslicing the first orbit!!!!!!
 #    clas_orbits[i] = timeslice(clas_orbits[i], 100)
 #reference_orbit = reference_orbit[:500] #think about this #not quite right yet
+
+#foo = np.array(timeslice(reference_orbit, 10000))
+#print(foo.shape)
+#plt.plot(foo[0].real, foo[0].imag)
+#plt.show()
 
 plot_orbits(reference_orbit, rel_orbits, clas_orbits)
 
