@@ -10,10 +10,43 @@ import matplotlib.pyplot as plt
 # time delay of light path going past a ... the lensing time delay is always of of order Gm/x**3 (time dimensions) so basically it's proportional to mass to an order magnitude. Sun has Schw radius of 3km and which is 10^-5 light seconds of the order 10 micro seconds so it's plausible that the relativistic signal will be of the order of the schwarzschild radius 
 # see how schw radius affects extent of the curves
 
-
 class Settings(object):
 
     """Set up parameters describing system."""
+
+    def __init__(self):
+        # Set up initial values: [x, y, px, py], number of orbits tested.
+
+        a = 3e3
+        e = 0.9
+        x_apo = a*(1+e)
+        py_apo = np.sqrt((1-e)/x_apo)
+
+        self.initial_values = [x_apo, 0.0, 0.0, py_apo] #double mass, major axis and time counts - get same (?check in detail) #0.01 #changed size of orbit from 2000 0 0 0.01 to 20 0 0 2 make harm derivs work - to be investigated further
+        self.init_variations = 5
+        self.cmpts = 10
+        self.total_time = 5e6 #2*np.pi #450000 #250000
+        self.timesteps = 10000
+        self.angles = [(n+1)*np.pi/100 for n in range(4)]
+        self.number_of_angles = len(self.angles)+1
+        self.number_of_curves = self.init_variations**2*self.number_of_angles
+
+    def get_deviations(self):
+
+        
+        deviations = np.zeros((self.init_variations, self.init_variations, 4))
+
+        for i in range(self.init_variations):
+
+            for j in range(self.init_variations):
+
+                deviations[i][j] = [0.3*(i-(self.init_variations-1)/2), 0, 0, 0.0005*(j-(self.init_variations-1)/2)]
+
+        return deviations
+
+"""class Settings(object):
+
+
 
     def __init__(self):
         # Set up initial values: [x, y, px, py], number of orbits tested.
@@ -27,12 +60,12 @@ class Settings(object):
         self.number_of_curves = self.init_variations**2*self.number_of_angles
 
     def get_deviations(self):
-        """Define deviations from the reference orbit."""
+        
         deviations = np.zeros((self.init_variations, self.init_variations, 4))
         for i in range(self.init_variations):
             for j in range(self.init_variations):
                 deviations[i][j] = [0.3*(i-(self.init_variations-1)/2), 0, 0, 0.0005*(j-(self.init_variations-1)/2)]
-        return deviations
+        return deviations"""
 
 class InitialConditions(object):
 
@@ -59,19 +92,27 @@ def relativistic_derivatives(eqns, tau):
     #return perturbed_harmonic_derivatives(eqns, tau)
 
     M = 1
+    m = 0.1 #1/4e6
+    r_n = 100
+    x_n = r_n*np.cos(tau/r_n**1.5)
+    y_n = r_n*np.sin(tau/r_n**1.5)
     x = eqns[0]
     y = eqns[1]
     px = eqns[2]
     py = eqns[3]
     r = np.sqrt(x**2 + y**2)
+    denom1 = r_n**3
+    denom2 = ((x-x_n)**2 + (y-y_n)**2)**1.5
     dx = px - (x*px + y*py)*2*M*x/r**3
     dpx = ((x*px + y*py)*2*M*px/r**3
                 - ((1 - 2/r)**-2)*M*x/r**3
-                - ((x*px + y*py)**2)*3*M*x/r**5)
+                - ((x*px + y*py)**2)*3*M*x/r**5
+                - m*(x_n/denom1 + (x-x_n)/denom2))
     dy = py - (x*px + y*py)*2*M*y/r**3
     dpy = ((x*px + y*py)*2*M*py/r**3
                 - ((1 - 2/r)**-2)*M*y/r**3
-                - ((x*px + y*py)**2)*3*M*y/r**5)
+                - ((x*px + y*py)**2)*3*M*y/r**5
+                - m*(y_n/denom1 + (y-y_n)/denom2))
     return [dx, dy, dpx, dpy]
 
 def classical_derivatives(eqns, tau):
@@ -84,24 +125,30 @@ def classical_derivatives(eqns, tau):
     under Newtonian gravity.
     """
     M = 1
+    m = 0.1 #1/4e6
+    r_n = 100
+    x_n = r_n*np.cos(tau/r_n**1.5)
+    y_n = r_n*np.sin(tau/r_n**1.5)
     x = eqns[0]
     y = eqns[1]
     px = eqns[2]
     py = eqns[3]
     r = np.sqrt(x**2 + y**2)
+    denom1 = r_n**3
+    denom2 = ((x-x_n)**2 + (y-y_n)**2)**1.5
     dx = px
-    dpx = -M*x/r**3
+    dpx = -M*x/r**3 - m*(x_n/denom1 + (x-x_n)/denom2)
     dy = py
-    dpy = -M*y/r**3
+    dpy = -M*y/r**3 - m*(y_n/denom1 + (y-y_n)/denom2)
     return [dx, dy, dpx, dpy]
 
 
 def perturbed_harmonic_derivatives(eqns, tau, k=4):
     """
-    Classical orbit differential equations.
+    Differential equations for a perturbed harmonic potential.
 
     Returns the differential equations describing movement
-    under Newtonian gravity.
+    under a harmonic potential with a variable perturbation applied.
     """
     x = eqns[0]
     y = eqns[1]
@@ -128,8 +175,6 @@ class Orbit_Solution(object):
         self.settings = settings
         self.tau = np.linspace(0.0, self.settings.total_time, self.settings.timesteps)
         self.init = InitialConditions(self.settings.initial_values)
-        #self.init_variations = self.settings.init_variations
-        #self.number_of_angles = self.settings.number_of_angles
 
     def solve(self, derivatives, adjustments):
         initial_values = self.init.initialise_orbit(adjustments)
@@ -335,7 +380,7 @@ test_orbit = np.array(test_orbit)[0] + 1j*np.array(test_orbit)[1]
 #for i in range(len(rel_orbits)):
 #    rel_orbits[i] = timeslice(rel_orbits[i], 100) #You're only timeslicing the first orbit!!!!!!
 #    clas_orbits[i] = timeslice(clas_orbits[i], 100)
-#reference_orbit = reference_orbit[:500] #think about this
+#reference_orbit = reference_orbit[:500] #think about this #not quite right yet
 
 # Obtain set of rotated orbits
 rel_orbits, clas_orbits = get_rotated_orbits(rel_orbits, clas_orbits, settings)
