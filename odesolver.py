@@ -19,15 +19,15 @@ class Settings(object):
         x_apo = a*(1+e)
         py_apo = np.sqrt((1-e)/x_apo)
         self.initial_values = [x_apo, 0.0, 0.0, py_apo] #double mass, major axis and time counts - get same (?check in detail) #0.01 #changed size of orbit from 2000 0 0 0.01 to 20 0 0 2 make harm derivs work - to be investigated further
-        self.init_variations = 2 #5
-        self.cmpts = 1 #6
+        self.init_variations =5
+        self.cmpts = 6
         self.total_time = 1.2e6
         self.timesteps = 10000
-        self.angles = [(n+1)*np.pi/100 for n in range(0)]
+        self.angles = [(n+1)*np.pi/100 for n in range(4)]
         self.number_of_angles = len(self.angles)+1
         self.number_of_curves = self.init_variations**2*self.number_of_angles
         ############
-        self.perturber_mass = 0 # 0.1
+        self.perturber_mass = 0.1
 
     def get_deviations(self):
         """Define deviations from the reference orbit initial position and momentum."""
@@ -319,7 +319,7 @@ def generate_relativistic_basis(reference_orbit, rel_orbits, clas_orbits, settin
     # Applying basis reconstruction to the classical differences using psi
     # results only in the reference orbit because there are no relativistic components
     # whereas applying to relativistic difference orbits produces different curves
-    basis_reconstruction = np.zeros((settings.number_of_curves, settings.timesteps-(time_length*slices)), dtype=complex) #-(time_length*slices) NBBBBBBB
+    basis_reconstruction = np.zeros((settings.number_of_curves, settings.timesteps), dtype=complex) #-(time_length*slices) NBBBBBBB
     for i in range(settings.number_of_curves):
         rel_dif = np.matrix(rel_differences[i])
         basis_reconstruction[i] = sum([(inner_product(rel_dif, psi_basis[n])*psi_basis[n]) for n in range(settings.cmpts)]) + reference_orbit
@@ -345,12 +345,19 @@ def generate_relativistic_basis(reference_orbit, rel_orbits, clas_orbits, settin
     return  basis_reconstruction#, test_projection#, test2
 
 
-def timeslice(orbit, time_length, number_of_slices):
-    new = []
-    for i in range(number_of_slices):
-        orbit_slice = orbit[i*time_length:-(number_of_slices-i)*time_length]
-        new.append(orbit_slice)
-    return new
+def timeslice(orbits, slices):
+    time_length = len(orbits[0])//((slices-1)*2)
+    bar = []
+    for i in range(len(orbits)):
+        foo = []
+        for j in range(slices):
+            orbit_slice = orbits[i][j*time_length:-(slices-j)*time_length]
+            foo.append(orbit_slice)
+        bar.append(foo)
+    bar = np.array(bar)
+    bar = np.reshape(bar, (settings.number_of_curves*slices, settings.timesteps-(time_length*slices)))
+
+    return bar
 
 ################################
 ############ METHOD ############
@@ -365,25 +372,9 @@ reference_orbit, rel_orbits, clas_orbits = orbits.get_orbits()
 slices = 6
 time_length = len(reference_orbit)//((slices-1)*2)
 
-bar = []
-for i in range(len(rel_orbits)):
-    foo = timeslice(rel_orbits[i], time_length, slices)
-    bar.append(foo)
-bar = np.array(bar)
-bar = np.reshape(bar, (settings.number_of_curves*slices, settings.timesteps-(time_length*slices)))
-
-rel_orbits = bar
-
-bar = []
-for i in range(len(clas_orbits)):
-    foo = timeslice(clas_orbits[i], time_length, slices)
-    bar.append(foo)
-bar = np.array(bar)
-bar = np.reshape(bar, (settings.number_of_curves*slices, settings.timesteps-(time_length*slices)))
-
-clas_orbits = bar
-
-reference_orbit = reference_orbit[:settings.timesteps-(time_length*slices)]
+#rel_orbits = timeslice(rel_orbits, slices)
+#clas_orbits = timeslice(clas_orbits, slices)
+#reference_orbit = reference_orbit[:settings.timesteps-(time_length*slices)]
 
 test_orbit = orbits.solve(relativistic_derivatives, [10, 0, 0, 0.0], settings.perturber_mass)
 test_orbit = np.array(test_orbit)[0] + 1j*np.array(test_orbit)[1]
@@ -396,17 +387,6 @@ test_orbit2 = np.array(test_orbit2)[0] + 1j*np.array(test_orbit2)[1]
 #foo2 = orbits.solve(classical_derivatives, [1000, 0, 0, 0.0], settings.perturber_mass)
 #foo2 = np.array(foo2)[0] + 1j*np.array(foo2)[1]
 ###
-
-# TIMESLICER. ISSUE WITH FACT THAT IT'S CUT OFF.
-#for i in range(len(rel_orbits)):
-#    rel_orbits[i] = timeslice(rel_orbits[i], 100) #You're only timeslicing the first orbit!!!!!!
-#    clas_orbits[i] = timeslice(clas_orbits[i], 100)
-#reference_orbit = reference_orbit[:500] #think about this #not quite right yet
-
-#foo = np.array(timeslice(reference_orbit, 10000))
-#print(foo.shape)
-#plt.plot(foo[0].real, foo[0].imag)
-#plt.show()
 
 plot_orbits(reference_orbit, rel_orbits, clas_orbits)
 
