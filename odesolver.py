@@ -19,14 +19,16 @@ class Settings(object):
         x_apo = a*(1+e)
         py_apo = np.sqrt((1-e)/x_apo)
         self.initial_values = [x_apo, 0.0, 0.0, py_apo] #double mass, major axis and time counts - get same (?check in detail) #0.01 #changed size of orbit from 2000 0 0 0.01 to 20 0 0 2 make harm derivs work - to be investigated further
-        self.init_variations =5
-        self.cmpts = 6
-        self.total_time = 1.2e6
-        self.timesteps = 10000
+        self.init_variations = 5
+        self.cmpts = 10
+#        self.total_time = 1.2e6
+#        self.timesteps = 10000
+        self.timesteps = 10330 #The magic number to get a just closed orbit
+        self.total_time = self.timesteps*100
         self.angles = [(n+1)*np.pi/100 for n in range(4)]
         self.number_of_angles = len(self.angles)+1
-        self.number_of_curves = self.init_variations**2*self.number_of_angles
-        ############
+        self.slices = 5  #NB if I change this to 6 then it breaks, probably due to integer division!
+        self.number_of_curves = self.init_variations**2*self.number_of_angles*self.slices
         self.perturber_mass = 0.1
 
     def get_deviations(self):
@@ -150,12 +152,23 @@ class Orbit_Solution(object):
     def __init__(self, settings):
         self.settings = settings
         self.tau = np.linspace(0.0, self.settings.total_time, self.settings.timesteps)
-        self.init = InitialConditions(self.settings.initial_values)
+        #self.init = InitialConditions(self.settings.initial_values)
 
-    def solve(self, derivatives, adjustments, m):
-        initial_values = self.init.initialise_orbit(adjustments)
+#    def solve(self, derivatives, adjustments, m):
+#        initial_values = self.init.initialise_orbit(adjustments)
+#        solution = scipy.integrate.odeint(
+#                   derivatives, initial_values, self.tau, args=(m,))
+#        x = solution[:,0]
+#        y = solution[:,1]
+#        px = solution[:,2]
+#        py = solution[:,3]
+
+#        return x, y, px, py
+
+    def solve(self, derivatives, adjustments, m, t, start_point):
+        initial_values = InitialConditions(start_point).initialise_orbit(adjustments)
         solution = scipy.integrate.odeint(
-                   derivatives, initial_values, self.tau, args=(m,))
+                   derivatives, initial_values, t, args=(m,))
         x = solution[:,0]
         y = solution[:,1]
         px = solution[:,2]
@@ -163,18 +176,38 @@ class Orbit_Solution(object):
 
         return x, y, px, py
 
-    def get_orbits(self):
-        deviations = self.settings.get_deviations()
-        reference_orbit = np.array(self.solve(classical_derivatives, [0, 0, 0, 0], 0))
+    def get_reference_orbit(self):
+        initial_values = InitialConditions(self.settings.initial_values).initialise_orbit([0, 0, 0, 0])
+        solution = scipy.integrate.odeint(
+                   classical_derivatives, initial_values, self.tau, args=(0,))
+        x = solution[:,0]
+        y = solution[:,1]
+        px = solution[:,2]
+        py = solution[:,3]
+
+        reference_orbit = np.array([x, y, px, py])
+        start_point = reference_orbit[:,-100]
+
         reference_orbit = reference_orbit[0] + 1j*reference_orbit[1]
+
+        return reference_orbit, start_point
+
+    def get_orbits(self):
+        time = np.linspace(0.0, self.settings.total_time+20000, self.settings.timesteps+200)
+        deviations = self.settings.get_deviations()
+        reference_orbit, start_point = self.get_reference_orbit()
+
+#        deviations = self.settings.get_deviations()
+#        reference_orbit = np.array(self.solve(classical_derivatives, [0, 0, 0, 0], 0))
+#        reference_orbit = reference_orbit[0] + 1j*reference_orbit[1]
 
         rel_orbits = []
         clas_orbits = []
 
         for i in range(self.settings.init_variations):
             for j in range(self.settings.init_variations):
-                r_orb = self.solve(relativistic_derivatives, deviations[i][j], self.settings.perturber_mass)
-                c_orb = self.solve(classical_derivatives, deviations[i][j], self.settings.perturber_mass)
+                r_orb = self.solve(relativistic_derivatives, deviations[i][j], self.settings.perturber_mass, time, start_point)
+                c_orb = self.solve(classical_derivatives, deviations[i][j], self.settings.perturber_mass, time, start_point)
 
                 rel_orbits.append(r_orb)
                 clas_orbits.append(c_orb)
@@ -188,7 +221,7 @@ class Orbit_Solution(object):
         return reference_orbit, rel_orbits, clas_orbits
 
     def get_difference_vectors(self, reference_orbit, rel_orbits, clas_orbits):
-        number_of_curves = self.settings.init_variations**2*self.settings.number_of_angles
+        number_of_curves = self.settings.number_of_curves
         rel_differences = np.zeros_like(rel_orbits)
         classical_differences = np.zeros_like(clas_orbits)
 
@@ -319,7 +352,7 @@ def generate_relativistic_basis(reference_orbit, rel_orbits, clas_orbits, settin
     # Applying basis reconstruction to the classical differences using psi
     # results only in the reference orbit because there are no relativistic components
     # whereas applying to relativistic difference orbits produces different curves
-    basis_reconstruction = np.zeros((settings.number_of_curves, settings.timesteps), dtype=complex) #-(time_length*slices) NBBBBBBB
+    basis_reconstruction = np.zeros((settings.number_of_curves, settings.timesteps), dtype=complex)
     for i in range(settings.number_of_curves):
         rel_dif = np.matrix(rel_differences[i])
         basis_reconstruction[i] = sum([(inner_product(rel_dif, psi_basis[n])*psi_basis[n]) for n in range(settings.cmpts)]) + reference_orbit
@@ -345,7 +378,7 @@ def generate_relativistic_basis(reference_orbit, rel_orbits, clas_orbits, settin
     return  basis_reconstruction#, test_projection#, test2
 
 
-def timeslice(orbits, slices):
+def timeslice_old(orbits, slices):
     time_length = len(orbits[0])//((slices-1)*2)
     bar = []
     for i in range(len(orbits)):
@@ -359,6 +392,21 @@ def timeslice(orbits, slices):
 
     return bar
 
+def timeslice(orbits):
+    settings = Settings()
+    time_length = 200//settings.slices
+    bar = []
+    for i in range(len(orbits)):
+        foo = []
+        for j in range(settings.slices):
+            orbit_slice = orbits[i][j*time_length:-(settings.slices-j)*time_length]
+            foo.append(orbit_slice)
+        bar.append(foo)
+    bar = np.array(bar)
+    bar = np.reshape(bar, (settings.number_of_curves, settings.timesteps))
+
+    return bar
+
 ################################
 ############ METHOD ############
 ################################
@@ -368,18 +416,13 @@ settings = Settings()
 orbits = Orbit_Solution(settings)
 reference_orbit, rel_orbits, clas_orbits = orbits.get_orbits()
 
-# Implementing time slices
-slices = 6
-time_length = len(reference_orbit)//((slices-1)*2)
+rel_orbits = timeslice(rel_orbits)
+clas_orbits = timeslice(clas_orbits)
 
-#rel_orbits = timeslice(rel_orbits, slices)
-#clas_orbits = timeslice(clas_orbits, slices)
-#reference_orbit = reference_orbit[:settings.timesteps-(time_length*slices)]
-
-test_orbit = orbits.solve(relativistic_derivatives, [10, 0, 0, 0.0], settings.perturber_mass)
-test_orbit = np.array(test_orbit)[0] + 1j*np.array(test_orbit)[1]
-test_orbit2 = orbits.solve(classical_derivatives, [10, 0, 0, 0.0], settings.perturber_mass)
-test_orbit2 = np.array(test_orbit2)[0] + 1j*np.array(test_orbit2)[1]
+#test_orbit = orbits.solve(relativistic_derivatives, [10, 0, 0, 0.0], settings.perturber_mass)
+#test_orbit = np.array(test_orbit)[0] + 1j*np.array(test_orbit)[1]
+#test_orbit2 = orbits.solve(classical_derivatives, [10, 0, 0, 0.0], settings.perturber_mass)
+#test_orbit2 = np.array(test_orbit2)[0] + 1j*np.array(test_orbit2)[1]
 
 ###
 #foo = orbits.solve(relativistic_derivatives, [1000, 0, 0, 0.0], settings.perturber_mass)
@@ -394,7 +437,7 @@ plot_orbits(reference_orbit, rel_orbits, clas_orbits)
 basis_reconstruction = generate_relativistic_basis(reference_orbit, rel_orbits, clas_orbits, settings) #, test_projection, test2
 
 # Plot basis projection
-for i in range(len(basis_reconstruction)): #NBBBB PLOTTED ONLY 10 OF EM WHEN GOT NO WIBBLES CHECK THIS
+for i in range(len(basis_reconstruction)):
     plt.plot(basis_reconstruction[i].real, basis_reconstruction[i].imag, label=i)
 #plt.plot(reference_orbit.real, reference_orbit.imag, 'm--')
 plt.legend()
