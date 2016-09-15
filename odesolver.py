@@ -23,7 +23,7 @@ class Settings(object):
         self.cmpts = 10
 #        self.total_time = 1.2e6
 #        self.timesteps = 10000
-        self.timesteps = 10330 #The magic number to get a just closed orbit
+        self.timesteps = 11000 #10330 #The magic number to get a just closed orbit
         self.total_time = self.timesteps*100
         self.angles = [(n+1)*np.pi/100 for n in range(4)]
         self.number_of_angles = len(self.angles)+1
@@ -218,7 +218,10 @@ class Orbit_Solution(object):
         if self.settings.angles != []:
             rel_orbits, clas_orbits = self.get_rotated_orbits(rel_orbits, clas_orbits)
 
-        return reference_orbit, rel_orbits, clas_orbits
+        unpeturbed_rel = orbits.solve(relativistic_derivatives, deviations[0][0], 0, time, start_point)
+        unpeturbed_rel = np.array(unpeturbed_rel)[0] + 1j*np.array(unpeturbed_rel)[1]
+
+        return reference_orbit, rel_orbits, clas_orbits, unpeturbed_rel
 
     def get_difference_vectors(self, reference_orbit, rel_orbits, clas_orbits):
         number_of_curves = self.settings.number_of_curves
@@ -291,12 +294,14 @@ def relativistic_components(phi_c, phi_nr):
 def plot_orbits(reference_orbit, rel_orbits, clas_orbits):
     # Set up plotting.
     fig = plt.figure()
-    ax1 = fig.add_subplot(1,2,1) #, adjustable='box', aspect = 1.0)
-    ax2 = fig.add_subplot(1,2,2) #, adjustable='box', aspect = 1.0)
+    ax1 = fig.add_subplot(1,2,1, adjustable='box', aspect = 1.0)
+    ax2 = fig.add_subplot(1,2,2, adjustable='box', aspect = 1.0)
     ax1.set_xlabel('x')
     ax1.set_ylabel('y')
+    ax1.set_title('Collection of orbits')
     ax2.set_xlabel('x')
     ax2.set_ylabel('y')
+    ax2.set_title('Orbit differentials')
 
     # Plot data.
     rel_differences, classical_differences, combined_differences = orbits.get_difference_vectors(
@@ -305,10 +310,10 @@ def plot_orbits(reference_orbit, rel_orbits, clas_orbits):
         ax1.plot(rel_orbits[i].real, rel_orbits[i].imag, 'b')
         ax1.plot(clas_orbits[i].real, clas_orbits[i].imag, 'g')
 
-        ax2.plot(combined_differences[i].real, rel_differences[i].imag, label=('R'))
-        ax2.plot(classical_differences[i].real, classical_differences[i].imag, label=('C'))
+        ax2.plot(combined_differences[i].real, rel_differences[i].imag) #, label=('R'))
+        ax2.plot(classical_differences[i].real, classical_differences[i].imag) #, label=('C'))
 
-    ax2.legend()
+    #ax2.legend()
     plt.show()
 
 def plot_basis_fns(phi_c, phi_nr, str_c, str_nr):
@@ -414,7 +419,7 @@ def timeslice(orbits):
 # Create orbits (z), differential orbits (z - z_ref)
 settings = Settings()
 orbits = Orbit_Solution(settings)
-reference_orbit, rel_orbits, clas_orbits = orbits.get_orbits()
+reference_orbit, rel_orbits, clas_orbits, unpeturbed_rel = orbits.get_orbits()
 
 rel_orbits = timeslice(rel_orbits)
 clas_orbits = timeslice(clas_orbits)
@@ -431,15 +436,28 @@ clas_orbits = timeslice(clas_orbits)
 #foo2 = np.array(foo2)[0] + 1j*np.array(foo2)[1]
 ###
 
-plot_orbits(reference_orbit, rel_orbits, clas_orbits)
+#plot_orbits(reference_orbit, rel_orbits, clas_orbits)
 
 # Reconstruct components of orbits that are purely relativistic and not found in the classical orbits
 basis_reconstruction = generate_relativistic_basis(reference_orbit, rel_orbits, clas_orbits, settings) #, test_projection, test2
 
+
+
+
 # Plot basis projection
-for i in range(len(basis_reconstruction)):
-    plt.plot(basis_reconstruction[i].real, basis_reconstruction[i].imag, label=i)
-#plt.plot(reference_orbit.real, reference_orbit.imag, 'm--')
+#for i in range(len(basis_reconstruction)):
+#    plt.plot(basis_reconstruction[i].real, basis_reconstruction[i].imag, label=i)
+#    plt.plot(rel_orbits[i].real, rel_orbits[i].imag, label=i)
+
+#FIGURE FOR PROPOSAL
+fig = plt.figure()
+ax1 = fig.add_subplot(1,1,1, adjustable='box', aspect = 1.0)
+ax1.plot(reference_orbit.real, reference_orbit.imag, label="Reference orbit")
+ax1.plot(rel_orbits[0].real, rel_orbits[0].imag, label="Relativistic orbit with Newtonian perturber")
+ax1.plot(basis_reconstruction[0].real, basis_reconstruction[0].imag, label="Reconstruction of relativistic orbit with Newtonian perturbation removed")
+ax1.plot(unpeturbed_rel.real, unpeturbed_rel.imag, '--', label="Unpeturbed relativistic orbit")
+ax1.set_xlabel('x')
+ax1.set_ylabel('y')
 plt.legend()
 plt.show()
 
