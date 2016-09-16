@@ -66,8 +66,8 @@ def relativistic_derivatives(eqns, tau, m):
 
     M = 1
     r_n = 100
-    x_n = -r_n*np.sin(tau/r_n**1.5) #r_n*np.cos(tau/r_n**1.5)
-    y_n = r_n*np.cos(tau/r_n**1.5) #r_n*np.sin(tau/r_n**1.5)
+    x_n = r_n*np.cos(tau/r_n**1.5) #-r_n*np.sin(tau/r_n**1.5)
+    y_n = r_n*np.sin(tau/r_n**1.5) #r_n*np.cos(tau/r_n**1.5)
     x = eqns[0]
     y = eqns[1]
     px = eqns[2]
@@ -100,8 +100,8 @@ def classical_derivatives(eqns, tau, m):
 
     M = 1
     r_n = 100
-    x_n = -r_n*np.sin(tau/r_n**1.5) #r_n*np.cos(tau/r_n**1.5)
-    y_n = r_n*np.cos(tau/r_n**1.5) #r_n*np.sin(tau/r_n**1.5)
+    x_n = r_n*np.cos(tau/r_n**1.5) #-r_n*np.sin(tau/r_n**1.5)
+    y_n = r_n*np.sin(tau/r_n**1.5) #r_n*np.cos(tau/r_n**1.5)
     x = eqns[0]
     y = eqns[1]
     px = eqns[2]
@@ -335,6 +335,7 @@ def generate_relativistic_basis(reference_orbit, rel_orbits, clas_orbits, settin
     # Applying basis reconstruction to the classical differences using psi
     # results only in the reference orbit because there are no relativistic components
     # whereas applying to relativistic difference orbits produces different curves
+
     basis_reconstruction = np.zeros((settings.number_of_curves, settings.timesteps), dtype=complex)
     for i in range(settings.number_of_curves):
         rel_dif = np.matrix(rel_differences[i])
@@ -371,5 +372,4 @@ ax1.set_xlabel('x')
 ax1.set_ylabel('y')
 plt.legend()
 plt.show()
-
 
