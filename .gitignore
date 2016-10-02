@@ -1,0 +1,27 @@
+# Compiled source #
+###################
+*.exe
+*.o
+*.so
+*.pyc
+
+# TeX stuff #
+###################
+*.aux
+*.dvi
+*.log
+*.bbl
+*.blg
+*.idx
+*.ilg
+*.ind
+*.toc
+
+# OS generated files #
+######################
+.DS_Store*
+ehthumbs.db
+Icon?
+Thumbs.db
+*~
+
