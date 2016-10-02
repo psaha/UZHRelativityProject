@@ -10,6 +10,7 @@
 *.aux
 *.dvi
 *.log
+*.out
 *.bbl
 *.blg
 *.idx
