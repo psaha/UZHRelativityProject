@@ -48,12 +48,24 @@ $^2$Physik-Institut, University of Zurich, Winterthurerstrasse 190, 8057 Zurich,
 
 \section{Introduction}
 
+Recent years have seen exciting examples of relativistic
+orbits \citep{2006Sci...314...97K,2006NewA...11..527C,2011PhRvL.106v1101E}.
+
+Galactic-centre black hole also attracted attention
+\citep{2008ApJ...674L..25W,2010ApJ...711..157A,2010ApJ...720.1303A,2015ApJ...809..127Z}.
+Unfortunately, not a clean system \citep[cf.][]{1947RvMP...19..361C}.
+Wavelet filtering one idea \citep{2014MNRAS.444.3780A}.  Here we
+propose another.
+
+Filter functions $\phi_k(t)$ which we apply to noisy signal $z(t)$ to
+get filtered signal $\bar z(t)$.
 \begin{equation}
 \begin{aligned}
         a_k &= \int\! z(t)\,\phi_k^*(t)\,dt \\
-  \bar z(t) &= \sum_p a_k \, \phi_k(t) .
+  \bar z(t) &= \sum_k a_k \, \phi_k(t) .
 \end{aligned}
 \end{equation}
+Formulated as complex because convenient for our toy model later.
 
 \section{Method}
 
